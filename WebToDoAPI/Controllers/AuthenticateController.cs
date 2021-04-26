@@ -56,13 +56,14 @@ namespace WebToDoAPI.Controllers
                     return BadRequest(new RegistrationResponse()
                     {
                         Result = false,
-                        Errors = new List<string>(){"Email already exist"}
+                        Errors = new List<string>() { "Email already exist" }
                     });
                 }
 
-                ApplicationUser newUser = new (){ 
-                    Email = user.Email, 
-                    UserName = user.Email 
+                ApplicationUser newUser = new()
+                {
+                    Email = user.Email,
+                    UserName = user.Email
                 };
 
                 var generatedPwd = passwordGenerator.Generate(32, 4);
@@ -75,7 +76,7 @@ namespace WebToDoAPI.Controllers
                     logger.LogInformation("Registration. New {user}", user);
                     return Ok(new RegistrationResponse()
                     {
-                        Result = true,                       
+                        Result = true,
                     });
                 }
 
@@ -111,7 +112,7 @@ namespace WebToDoAPI.Controllers
                     return BadRequest(new RegistrationResponse()
                     {
                         Result = false,
-                        Errors = new List<string>(){ "Invalid authentication" }
+                        Errors = new List<string>() { "Invalid authentication" }
                     });
                 }
 
@@ -127,11 +128,11 @@ namespace WebToDoAPI.Controllers
                     });
                 }
                 else
-                {                    
+                {
                     return BadRequest(new RegistrationResponse()
                     {
                         Result = false,
-                        Errors = new List<string>(){"Invalid authentication"}
+                        Errors = new List<string>() { "Invalid authentication" }
                     });
                 }
             }
@@ -139,12 +140,126 @@ namespace WebToDoAPI.Controllers
             return BadRequest(new RegistrationResponse()
             {
                 Result = false,
-                Errors = new List<string>(){"Invalid payload"}
+                Errors = new List<string>() { "Invalid payload" }
             });
         }
 
+        [HttpPost]
+        [Route("Forgot")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest resetPassword)
+        {
+            if (ModelState.IsValid)
+            {
+                // check if the user with the same email exist
+                var existingUser = await userManager.FindByEmailAsync(resetPassword.Email);
+
+                if (existingUser != null)
+                {
+                    logger.LogInformation("Reset pwd. Requested for wrong email {Email}", resetPassword.Email);
+                    return BadRequest(new RegistrationResponse()
+                    {
+                        Result = false,
+                        Errors = new List<string>() { "Wrong email" }
+                    });
+                }
+
+                logger.LogWarning("ForgotPassword. Requested for {Email}", resetPassword.Email);
+                string resetToken = await userManager.GeneratePasswordResetTokenAsync(existingUser);
+
+                //Create URL with above token and send it to email
+                var resetPwdLink = Url.Action("ResetPassword", "Account",
+                    new
+                    {
+                        email = existingUser.UserName,
+                        code = resetToken
+                    });
+
+                _ = emailSender.SendResetPasswordLinkToUserAsync(existingUser.Email, resetPwdLink);
+
+                return Ok(new ResetPasswordResponce()
+                {
+                    Result = true,
+                });
+            }
+            return BadRequest(new ResetPasswordResponce()
+            {
+                Result = false,
+                Errors = new List<string>() { "Invalid payload" }
+            });
+        }
+
+        [HttpPost]
+        [Route("ResetPassword")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest resetPassword)
+        {
+            if (ModelState.IsValid)
+            {
+                // check if the user with the same email exist
+                var existingUser = await userManager.FindByEmailAsync(resetPassword.Email);
+
+                if (existingUser != null)
+                {
+                    logger.LogWarning("ResetPassword. Requested for wrong email {Email}", resetPassword.Email);
+                    return BadRequest(new ResetPasswordResponce()
+                    {
+                        Result = false,
+                        Errors = new List<string>() { "Wrong email" }
+                    });
+                }
+
+                //verify new password agains Validators
+                foreach (var validator in userManager.PasswordValidators)
+                {
+                    var validPassword = await validator.ValidateAsync(userManager, existingUser, resetPassword.NewPassword);
+                    if (!validPassword.Succeeded)
+                    {
+                        return BadRequest(new ResetPasswordResponce()
+                        {
+                            Result = false,
+                            Errors = new List<string>() {
+                                    "Password to simple",
+                                    validPassword.Errors.Select(c=>c.Description).Aggregate((a,b)=> $"{a},{b}") }
+                        });
+                    }
+                }
+
+
+
+                var passwordChangeResult =
+                   await userManager.ResetPasswordAsync(
+                       existingUser, 
+                       resetPassword.ResetToken,
+                       resetPassword.NewPassword);
+
+
+                if (passwordChangeResult.Succeeded)
+                {
+                    logger.LogInformation("ResetPassword. done for {Email}", existingUser.Email);
+                    return Ok(new ResetPasswordResponce()
+                    {
+                        Result = true,
+                    });
+                }
+                else
+                {
+                    logger.LogError(
+                        "ResetPassword. error for {Email}, {Errors}", 
+                        existingUser.Email, 
+                        passwordChangeResult.Errors.Select(d => d.Description).Aggregate((a, b) => $"{a},{b}"));
+                }               
+            }
+            return BadRequest(new ResetPasswordResponce()
+            {
+                Result = false,
+                Errors = new List<string>() { "Invalid payload" }
+            });
+        }
+
+
+
+
         private string GenerateJwtToken(ApplicationUser user)
-        {           
+        {
             var tokenHandler = new JwtSecurityTokenHandler();
 
             // We get our secret from the appsettings

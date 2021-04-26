@@ -54,7 +54,7 @@ namespace WebToDoAPI.Data
                userManager.AddToRolesAsync(user, new[] { userRoleName });
                userManager.AddToRolesAsync(lockedUser, new[] { userRoleName });
                userManager.AddToRolesAsync(userWithAdminRights, new[] { adminRoleName, userRoleName });
-
+                
 
             }
         }

@@ -36,6 +36,11 @@ namespace WebToDoAPI
         {
             services.AddControllers();
             services.Configure<JwtConfig>(Configuration.GetSection("JwtConfig"));
+            services.Configure<DataProtectionTokenProviderOptions>(options =>
+            {
+                options.TokenLifespan = TimeSpan.FromMinutes(10);
+            });
+
             services.AddSingleton<Utils.IPasswordGenerator, Utils.PasswordGenerator>();
             services.AddSingleton<Utils.IEmailSender, Utils.EmailSender>();
 

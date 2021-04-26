@@ -2,17 +2,12 @@
 
 namespace WebToDoAPI.Models
 {
-    public class LoginModel
+    public class ForgotPasswordRequest
     {
         [MinLength(3)]
         [MaxLength(128)]
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Provided Email is not vaild")]
         public string Email { get; set; }
-        
-        [MinLength(1)]
-        [MaxLength(128)]
-        [Required(ErrorMessage = "Password is required")]
-        public string Password { get; set; }
     }
 }
