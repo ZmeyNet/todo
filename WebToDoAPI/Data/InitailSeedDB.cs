@@ -9,37 +9,53 @@ namespace WebToDoAPI.Data
 {
     public class InitailSeedDB
     {
+        private const string userRoleName = "user";
+        private const string adminRoleName = "admin";
+
         public static void Initialize(IServiceProvider serviceProvider)
         {
+            const string pwdDefault = "Pwd@@123";
+
             var context = serviceProvider.GetRequiredService<ToDoDbContext>();
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-
+            
+            //recrete DB each time 
+            context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
             
             if (!context.Users.Any())
             {
-                ApplicationUser user = new ApplicationUser()
-                {                    
+                var user = new ApplicationUser()
+                {
                     Email = "user@example.com",
                     UserName = "user",
-                    SecurityStamp = Guid.NewGuid().ToString()
+                    EmailConfirmed = true,                    
+                    SecurityStamp = Guid.NewGuid().ToString("N")
                 };
-                ApplicationUser lockedUser = new ApplicationUser()
+                var lockedUser = new ApplicationUser()
                 {
-                    Email = "user1@example.com",
-                    UserName = "user1",
-                    SecurityStamp = Guid.NewGuid().ToString()
+                    Email = "locked@example.com",
+                    UserName = "lockedUser",
+                    LockoutEnabled = true,
+                    SecurityStamp = Guid.NewGuid().ToString("N")
                 };
-                ApplicationUser userWithAdminRights = new ApplicationUser()
+                var userWithAdminRights = new ApplicationUser()
                 {
                     Email = "admin@example.com",
                     UserName = "adimn",
-                    SecurityStamp = Guid.NewGuid().ToString()
+                    EmailConfirmed = true,
+                    SecurityStamp = Guid.NewGuid().ToString("N")
                 };
+                
+               userManager.CreateAsync(user, pwdDefault);
+               userManager.CreateAsync(lockedUser, pwdDefault);
+               userManager.CreateAsync(userWithAdminRights, pwdDefault);
 
-                userManager.CreateAsync(user, "pwd@@123");
-                userManager.CreateAsync(lockedUser, "pwd@@123");
-                userManager.CreateAsync(userWithAdminRights, "pwd@@123");
+               userManager.AddToRolesAsync(user, new[] { userRoleName });
+               userManager.AddToRolesAsync(lockedUser, new[] { userRoleName });
+               userManager.AddToRolesAsync(userWithAdminRights, new[] { adminRoleName, userRoleName });
+
+
             }
         }
 
