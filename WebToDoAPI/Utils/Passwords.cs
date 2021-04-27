@@ -5,7 +5,7 @@ namespace WebToDoAPI.Utils
 {
     public class PasswordGenerator : IPasswordGenerator
     {
-        private readonly char[] Punctuations = "!@#$%^&*()_-+=[{]};:>|./?".ToCharArray();
+        private readonly char[] punctuations = "!@#$%^&*()_-+=[{]};:>|./?".ToCharArray();
 
         public string Generate(int length, int numberOfNonAlphanumericCharacters)
         {
@@ -32,22 +32,21 @@ namespace WebToDoAPI.Utils
                 {
                     var i = byteBuffer[iter] % 87;
 
-                    if (i < 10)
+                    switch (i)
                     {
-                        characterBuffer[iter] = (char)('0' + i);
-                    }
-                    else if (i < 36)
-                    {
-                        characterBuffer[iter] = (char)('A' + i - 10);
-                    }
-                    else if (i < 62)
-                    {
-                        characterBuffer[iter] = (char)('a' + i - 36);
-                    }
-                    else
-                    {
-                        characterBuffer[iter] = Punctuations[i - 62];
-                        count++;
+                        case < 10:
+                            characterBuffer[iter] = (char)('0' + i);
+                            break;
+                        case < 36:
+                            characterBuffer[iter] = (char)('A' + i - 10);
+                            break;
+                        case < 62:
+                            characterBuffer[iter] = (char)('a' + i - 36);
+                            break;
+                        default:
+                            characterBuffer[iter] = punctuations[i - 62];
+                            count++;
+                            break;
                     }
                 }
 
@@ -68,7 +67,7 @@ namespace WebToDoAPI.Utils
                     }
                     while (!char.IsLetterOrDigit(characterBuffer[k]));
 
-                    characterBuffer[k] = Punctuations[rand.Next(0, Punctuations.Length)];
+                    characterBuffer[k] = punctuations[rand.Next(0, punctuations.Length)];
                 }
 
                 return new string(characterBuffer);
