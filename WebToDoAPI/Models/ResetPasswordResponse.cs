@@ -1,7 +1,7 @@
 ﻿
 namespace WebToDoAPI.Models
 {
-    public class ResetPasswordResponce : BaseRequestResult
+    public class ResetPasswordResponse : BaseRequestResult
     {
         
     }
