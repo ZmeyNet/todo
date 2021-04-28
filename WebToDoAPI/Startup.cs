@@ -1,23 +1,18 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using WebToDoAPI.Data;
 using WebToDoAPI.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
-using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 
 
@@ -48,7 +43,7 @@ namespace WebToDoAPI
             services.AddDbContext<ToDoDbContext>(
                 options => options.UseMySQL(Configuration.GetConnectionString("DefaultMySqlConnection")));
 
-            services.AddIdentity<ApplicationUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
+            services.AddIdentity<ApplicationUser, ApplicationRole>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddEntityFrameworkStores<ToDoDbContext>()
                 .AddDefaultTokenProviders();
 
@@ -74,6 +69,7 @@ namespace WebToDoAPI
                     }
                 });
             });
+            
             services.AddAuthorization();
             // within this section we are configuring the authentication and setting the default scheme
             services.AddAuthentication(options =>
@@ -120,7 +116,7 @@ namespace WebToDoAPI
                 };
             });
             
-
+            
 
         }
 

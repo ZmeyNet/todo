@@ -1,17 +1,17 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using WebToDoAPI.Configuration;
+using Microsoft.AspNetCore.Identity;
 using WebToDoAPI.Data;
 using WebToDoAPI.Data.Entities;
 using WebToDoAPI.Models;
+using WebToDoAPI.Utils;
 
 
 namespace WebToDoAPI.Controllers
@@ -22,46 +22,40 @@ namespace WebToDoAPI.Controllers
     public class TasksController : ControllerBase
     {
         private readonly ToDoDbContext dbContext;
-        private readonly UserManager<ApplicationUser> userManager;
         private readonly ILogger<TasksController> logger;
+        private readonly UserManager<ApplicationUser> userManager;
 
         public TasksController(ILogger<TasksController> logger
-            , UserManager<ApplicationUser> userManager
-            , ToDoDbContext dbContext)
+            , ToDoDbContext dbContext, UserManager<ApplicationUser> userManager)
         {
             this.logger = logger;
-            this.userManager = userManager;
             this.dbContext = dbContext;
+            this.userManager = userManager;
         }
 
-        private string GetUid()
-        {
-            return User.FindFirstValue("Id");
-        }
-
+        /// <summary>
+        /// Get all user task
+        /// </summary>
+        /// <returns>List of current user tasks</returns>
         // GET: /api/Tasks
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ToDoTask>>> GetMyTasks()
         {
             return await dbContext.Tasks
-                .Where(c => c.User.Id == GetUid())
+                .Where(c => c.User.Id == User.Uid())
                 .Select(c => new ToDoTask(c)).ToListAsync();
         }
 
-        // GET: api/Tasks/AllUsersTasks
-        [HttpGet]
-        [Route("AllUsersTasks")]
-        [Authorize(Roles = AppUserRoles.Administrator)]
-        public async Task<ActionResult<IEnumerable<ToDoTask>>> GetAllTasks()
-        {
-            return await dbContext.Tasks.Select(c => new ToDoTask(c)).ToListAsync();
-        }
-
+        /// <summary>
+        /// Get task by id
+        /// </summary>
+        /// <param name="id">task id</param>
+        /// <returns></returns>
         // GET: api/Task/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ToDoTask>> GetMyTask(int id)
         {
-            var toDoTask = await dbContext.Tasks.FirstOrDefaultAsync(c => c.Id == id && c.User.Id == GetUid());
+            var toDoTask = await dbContext.Tasks.FirstOrDefaultAsync(c => c.Id == id && c.User.Id == User.Uid());
 
             if (toDoTask == null)
             {
@@ -70,6 +64,13 @@ namespace WebToDoAPI.Controllers
             return new ToDoTask(toDoTask);
         }
 
+
+        /// <summary>
+        /// Update to do task
+        /// </summary>
+        /// <param name="id">id of the task</param>
+        /// <param name="task">task object itself with updated fields</param>
+        /// <returns></returns>
         // PUT: api/MyTasks/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
@@ -82,16 +83,22 @@ namespace WebToDoAPI.Controllers
 
             //verify task ownership 
             var taskFromDb = dbContext.Tasks
-                .FirstOrDefault(c => c.Id == id && c.User.Id == userManager.GetUserId(User));
+                .FirstOrDefault(c => c.Id == id && c.User.Id == User.Uid());
             if (taskFromDb == null)
             {
                 //current user is not owner of this task
                 //for security reason send him a 404
-                logger.LogWarning("User [{user}] try update not owned task {Task} ", task, userManager.GetUserName(User));
+                logger.LogWarning("User [{user}] try update not owned task {Task} ", task, User.Uid());
                 return NotFound();
             }
 
-            dbContext.Entry(task).State = EntityState.Modified;
+            taskFromDb.Description = task.Description;
+            taskFromDb.IsCompleted = task.IsCompleted;
+            taskFromDb.Name = task.Name;
+
+
+
+            //dbContext.Entry(taskFromDb).State = EntityState.Modified;
 
             try
             {
@@ -99,45 +106,51 @@ namespace WebToDoAPI.Controllers
             }
             catch (DbUpdateConcurrencyException exception)
             {
-                if (dbContext.Tasks.Any(c => c.Id == id && c.User.Id == userManager.GetUserId(User)))
+                if (dbContext.Tasks.Any(c => c.Id == id && c.User.Id == User.Uid()))
                 {
                     return NoContent();
                 }
 
                 logger.LogError(exception, "Exception during note saving");
-                return Problem(statusCode: 500);
+                return Problem(statusCode: (int)HttpStatusCode.InternalServerError);
             }
 
-            return NoContent();
+            return Ok();
         }
 
+
+        /// <summary>
+        /// add new To Do task
+        /// </summary>
+        /// <param name="task">to do task</param>
+        /// <returns>created object</returns>
         // POST: api/Tasks
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-
         public async Task<ActionResult<ToDoTask>> PostToDoTask(ToDoTask task)
         {
             var entityTask = new TaskEntity
             {
                 Name = task.Name,
                 Description = task.Description,
-                Id = task.Id,
                 IsCompleted = task.IsCompleted,
+                User = await userManager.FindByIdAsync(User.Uid())
             };
 
             var savedTask = await dbContext.Tasks.AddAsync(entityTask);
-            savedTask.Entity.User.Id = GetUid();
-            //assign ownership
+
             await dbContext.SaveChangesAsync();
 
-            return CreatedAtAction("GetMyTask", "Tasks", new { id = task.Id }, task);
+            var result = new ToDoTask(savedTask.Entity);
+
+            return CreatedAtAction("GetMyTask", "Tasks", new { id = result.Id }, result);
         }
 
         // DELETE: api/Tasks/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMyTask(int id)
         {
-            var task = await dbContext.Tasks.FirstOrDefaultAsync(c => c.Id == id && c.User.Id == GetUid());
+            var task = await dbContext.Tasks.FirstOrDefaultAsync(c => c.Id == id && c.User.Id == User.Uid());
             if (task == null)
             {
                 return NotFound();
@@ -149,45 +162,5 @@ namespace WebToDoAPI.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Tasks/UserTasks/uid
-        [HttpDelete("UserTasks/{userid}")]
-        [Authorize(Roles = AppUserRoles.Administrator)]
-        public async Task<IActionResult> DeleteAllTaskByUserId(string userId)
-        {
-            var tasks = await dbContext.Tasks.Where(c => c.User.Id == userId)
-                .Select(c => new TaskEntity { Id = c.Id }).ToListAsync();
-
-            if (tasks == null || tasks.Count == 0)
-            {
-                //nothing to delete 
-                return NoContent();
-            }
-
-            dbContext.Tasks.RemoveRange(tasks);
-
-            await dbContext.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-
-        // DELETE: api/Tasks/UserTasks/uid/taskId
-        [HttpDelete("UserTask/{userid}/{taskId}")]
-        [Authorize(Roles = AppUserRoles.Administrator)]
-        public async Task<IActionResult> DeleteUserTask(string userId, int taskId)
-        {
-            var task = await dbContext.Tasks.FirstOrDefaultAsync(c => c.Id == taskId && c.User.Id == userId);
-            if (task == null)
-            {
-                //nothing to delete or task not found
-                return NotFound();
-            }
-
-            dbContext.Tasks.Remove(task);
-
-            await dbContext.SaveChangesAsync();
-
-            return NoContent();
-        }
     }
 }

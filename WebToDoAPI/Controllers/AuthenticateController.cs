@@ -60,6 +60,9 @@ namespace WebToDoAPI.Controllers
 
                 var generatedPwd = passwordGenerator.Generate(32, 4);
                 var isCreated = await userManager.CreateAsync(newUser, generatedPwd);
+
+                await userManager.AddToRoleAsync(newUser, AppUserRoles.User);
+
                 //send email to end user with pwd assigned
                 await emailSender.SendPasswordToNewlyCreatedUserAsync(newUser.Email, generatedPwd);
 
@@ -104,7 +107,7 @@ namespace WebToDoAPI.Controllers
             {
                 return BadRequest(new RegistrationResponse { Errors = new List<string> { "Invalid authentication" } });
             }
-            var jwtToken = TokenUtils.GenerateJwtToken(jwtConfig, existingUser);
+            var jwtToken = TokenUtils.GenerateJwtToken(jwtConfig, existingUser, userManager);
 
             return Ok(new RegistrationResponse()
             {
