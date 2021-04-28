@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-
-
-namespace WebToDoAPI.Models
+﻿
+namespace WebToDoAPI.Models.Authentication
 {
     public class AuthResult : BaseRequestResult
     {

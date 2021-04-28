@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace WebToDoAPI.Models
+namespace WebToDoAPI.Models.Authentication
 {
     public class UserRegistration
     {

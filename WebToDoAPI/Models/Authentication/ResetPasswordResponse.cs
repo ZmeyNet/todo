@@ -1,5 +1,5 @@
 ﻿
-namespace WebToDoAPI.Models
+namespace WebToDoAPI.Models.Authentication
 {
     public class ResetPasswordResponse : BaseRequestResult
     {
