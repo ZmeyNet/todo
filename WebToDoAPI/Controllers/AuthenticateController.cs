@@ -114,7 +114,12 @@ namespace WebToDoAPI.Controllers
                 // We don't want to give to much information on why the request has failed for security reasons
                 return BadRequest(new RegistrationResponse { Errors = new List<string> { "Invalid authentication" } });
             }
-
+            
+            if (existingUser.IsDisabled)
+            {
+                // We don't want to give to much information on why the request has failed for security reasons
+                return BadRequest(new RegistrationResponse { Errors = new List<string> { "Invalid authentication" } });
+            }
             // verify user pwd    
             if (!await userManager.CheckPasswordAsync(existingUser, user.Password))
             {

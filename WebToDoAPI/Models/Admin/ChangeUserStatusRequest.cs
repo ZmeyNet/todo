@@ -6,6 +6,6 @@ namespace WebToDoAPI.Models.Admin
     {
         
         [Required]
-        public bool UserActiveStatusToBeSet { get; set; }
+        public bool IsDisabled { get; set; }
     }
 }

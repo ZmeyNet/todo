@@ -45,7 +45,17 @@ namespace WebToDoAPI.Controllers
         public async Task<ActionResult<IEnumerable<ToDoTaskManaged>>> GetAllTasks()
         {
             //this one can be huge  
-            return Ok(await dbContext.Tasks.Select(c => new ToDoTaskManaged(c)).AsNoTracking().ToListAsync());
+            return Ok(await dbContext.Tasks.Select(
+                c => new ToDoTaskManaged()
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Description = c.Description,
+                    IsCompleted = c.IsCompleted,
+                    UserId = c.User.Id
+                }
+
+            ).AsNoTracking().ToListAsync());
         }
 
         /// <summary>
@@ -148,7 +158,9 @@ namespace WebToDoAPI.Controllers
                 return NotFound("user with id [{userId}] not found");
             }
 
-            var opResult = await userManager.SetLockoutEnabledAsync(requestedUser, changeUserStatusRequest.UserActiveStatusToBeSet);
+            requestedUser.IsDisabled = changeUserStatusRequest.IsDisabled;
+
+            var opResult = await userManager.UpdateAsync(requestedUser);
             if (opResult.Succeeded)
             {
                 return Ok();
@@ -185,6 +197,12 @@ namespace WebToDoAPI.Controllers
 
             var requestedUser = await userManager.Users.FirstOrDefaultAsync(c => c.Id == removeUserRequest.UserId);
 
+            if (requestedUser == null)
+            {
+                logger.LogWarning("User not found {userid} request send by [{admin}]", removeUserRequest.UserId, User.Uid());
+                return NotFound("user with id [{userId}] not found");
+            }
+
             if (removeUserRequest.UserId == User.Uid())
             {
                 //looks like user is removing himself
@@ -199,16 +217,7 @@ namespace WebToDoAPI.Controllers
                 //not allowed
                 logger.LogWarning("User try remove other admin {userid} request send by [{admin}]", removeUserRequest.UserId, User.Uid());
                 return BadRequest("please provide another UID");
-
             }
-
-
-            if (requestedUser == null)
-            {
-                logger.LogWarning("User not found {userid} request send by [{admin}]", removeUserRequest.UserId, User.Uid());
-                return NotFound("user with id [{userId}] not found");
-            }
-
 
             var tasks = await dbContext.Tasks
                 .Where(c => c.User.Id == removeUserRequest.UserId)

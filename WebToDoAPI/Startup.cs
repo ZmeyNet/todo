@@ -112,7 +112,7 @@ namespace WebToDoAPI
                         var dbContext = context.HttpContext.RequestServices.GetRequiredService<ToDoDbContext>();
                        
                         var user = dbContext.Users.Find(userid);
-                        if (user == null)
+                        if (user == null || user.IsDisabled)
                         {
                             context.Fail("Invalid token");
                         }

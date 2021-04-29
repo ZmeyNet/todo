@@ -63,7 +63,7 @@ namespace WebToDoAPI.Data
             {
                 Email = "locked@example.com",
                 UserName = "lockedUser",
-                LockoutEnabled = true,
+                IsDisabled = true,
                 SecurityStamp = Guid.NewGuid().ToString("N")
             };
             var userWithAdminRights = new ApplicationUser
