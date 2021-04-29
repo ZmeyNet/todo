@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -13,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using WebToDoAPI.Configuration;
 using WebToDoAPI.Data;
 using WebToDoAPI.Data.Entities;
-using WebToDoAPI.Models;
 using WebToDoAPI.Models.Admin;
 using WebToDoAPI.Utils;
 
@@ -37,16 +34,25 @@ namespace WebToDoAPI.Controllers
             this.userManager = userManager;
             this.dbContext = dbContext;
         }
-
+        /// <summary>
+        /// Get all tasks in a system
+        /// </summary>
+        /// <returns>list of ToDoTaskManaged</returns>
+        /// <response code="200">Return requested items</response>
         // GET: api/Admin/GetAllTasks
         [HttpGet]
         [Route("GetAllTasks")]
-        public async Task<ActionResult<IEnumerable<TaskEntity>>> GetAllTasks()
+        public async Task<ActionResult<IEnumerable<ToDoTaskManaged>>> GetAllTasks()
         {
-            return await dbContext.Tasks.ToListAsync();
+            //this one can be huge  
+            return Ok(await dbContext.Tasks.Select(c => new ToDoTaskManaged(c)).AsNoTracking().ToListAsync());
         }
 
-
+        /// <summary>
+        /// Delete all task for exact user
+        /// </summary>
+        /// <returns>No content</returns>
+        /// <response code="204">If item operation done</response>
         // DELETE: api/Admin/UserTasks/uid
         [HttpDelete]
         [Route("DeleteUserTasks")]
@@ -70,6 +76,13 @@ namespace WebToDoAPI.Controllers
         }
 
 
+
+        /// <summary>
+        /// Delete exact task for exact user
+        /// </summary>
+        /// <returns>No content</returns>
+        /// <response code="404">If task not found</response>
+        /// <response code="204">If item operation done</response>
         // DELETE: api/Admin/UserTasks/uid/taskId
         [HttpDelete]
         [Route("DeleteUserTask")]
@@ -92,18 +105,29 @@ namespace WebToDoAPI.Controllers
         }
 
 
-
+        /// <summary>
+        /// List of user with Emails
+        /// </summary>
+        /// <returns>List of user data(PII name\email)</returns>
+        /// <response code="200">with items</response>
         // GET: api/Admin/GetAllUsers
         [HttpGet]
         [Route("GetAllUsers")]
         public async Task<ActionResult<IEnumerable<UserRecord>>> GetAllUsers()
         {
-            return await dbContext.Users.Select(c =>
+            return Ok(await dbContext.Users.Select(c =>
                     new UserRecord { Id = c.Id, Name = c.UserName, Email = c.Email })
-                .ToListAsync();
+                .ToListAsync());
         }
 
-
+        /// <summary>
+        /// Activate or Deactivate user record
+        /// </summary>
+        /// <returns>No content</returns>
+        /// <response code="400">If request with wrong parameters</response>
+        /// <response code="404">If user not found</response>
+        /// <response code="200">If operation done</response>
+        /// <response code="500">If server error happen during operation</response>
         // PUT: api/Admin/SetUserStatus
         [HttpPut]
         [Route("SetUserStatus")]
@@ -139,6 +163,15 @@ namespace WebToDoAPI.Controllers
 
         }
 
+
+        /// <summary>
+        /// Delete exact user from system including all assigned tasks data
+        /// </summary>
+        /// <returns>No content</returns>
+        /// <response code="400">If bad request or we are going to ourselfs or user is admin</response>
+        /// <response code="204">If item operation done</response>
+        /// <response code="404">If user not found</response>
+        /// <response code="500">If error happen during process</response>
         // PUT: api/Admin/SetUserStatus
         [HttpDelete]
         [Route("RemoveUser")]
@@ -149,8 +182,25 @@ namespace WebToDoAPI.Controllers
                 logger.LogWarning("User not found {userid} request send by [{admin}]", removeUserRequest.UserId, User.Uid());
                 return BadRequest();
             }
-            
+
             var requestedUser = await userManager.Users.FirstOrDefaultAsync(c => c.Id == removeUserRequest.UserId);
+
+            if (removeUserRequest.UserId == User.Uid())
+            {
+                //looks like user is removing himself
+                //not allowed 
+                logger.LogWarning("User try remove himself {userid} request send by [{admin}]", removeUserRequest.UserId, User.Uid());
+                return BadRequest("please provide another UID");
+            }
+
+            if (await userManager.IsInRoleAsync(requestedUser, AppUserRoles.Administrator))
+            {
+                //looks we a removing admin user
+                //not allowed
+                logger.LogWarning("User try remove other admin {userid} request send by [{admin}]", removeUserRequest.UserId, User.Uid());
+                return BadRequest("please provide another UID");
+
+            }
 
 
             if (requestedUser == null)
@@ -159,10 +209,22 @@ namespace WebToDoAPI.Controllers
                 return NotFound("user with id [{userId}] not found");
             }
 
+
+            var tasks = await dbContext.Tasks
+                .Where(c => c.User.Id == removeUserRequest.UserId)
+                .Select(c => new TaskEntity { Id = c.Id }).ToListAsync();
+
+            if (tasks != null && tasks.Count != 0)
+            {
+                dbContext.Tasks.RemoveRange(tasks);
+
+                await dbContext.SaveChangesAsync();
+            }
+
             var opResult = await userManager.DeleteAsync(requestedUser);
             if (opResult.Succeeded)
             {
-                return Ok();
+                return NoContent();
             }
 
             return Problem(

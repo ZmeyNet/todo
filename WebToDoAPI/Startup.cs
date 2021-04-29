@@ -7,7 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using System;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using WebToDoAPI.Data;
 using WebToDoAPI.Configuration;
@@ -43,7 +45,8 @@ namespace WebToDoAPI
             services.AddDbContext<ToDoDbContext>(
                 options => options.UseMySQL(Configuration.GetConnectionString("DefaultMySqlConnection")));
 
-            services.AddIdentity<ApplicationUser, ApplicationRole>(options => options.SignIn.RequireConfirmedAccount = false)
+            services.AddIdentity<ApplicationUser, ApplicationRole>(options => 
+                    options.SignIn.RequireConfirmedAccount = false)
                 .AddEntityFrameworkStores<ToDoDbContext>()
                 .AddDefaultTokenProviders();
 
@@ -68,6 +71,9 @@ namespace WebToDoAPI
                         Array.Empty<string>()
                     }
                 });
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                c.IncludeXmlComments(xmlPath);
             });
             
             services.AddAuthorization();

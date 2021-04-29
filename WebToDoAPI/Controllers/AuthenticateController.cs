@@ -1,5 +1,4 @@
-﻿using System;
-using WebToDoAPI.Data;
+﻿using WebToDoAPI.Data;
 using WebToDoAPI.Models.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace WebToDoAPI.Controllers
 {
+    [Consumes("application/json")]
     [Route("api/[controller]")] // api/Authenticate
     public class AuthenticateController : Controller
     {
@@ -25,17 +25,23 @@ namespace WebToDoAPI.Controllers
 
         public AuthenticateController(ILogger<AuthenticateController> logger
             , UserManager<ApplicationUser> userManager
-            , IOptionsMonitor<JwtConfig> optionsMonitor
+            , IOptionsMonitor<JwtConfig> jwtOptions
             , IPasswordGenerator passwordGenerator
             , IEmailSender emailSender)
         {
             this.userManager = userManager;
             this.passwordGenerator = passwordGenerator;
             this.emailSender = emailSender;
-            this.jwtConfig = optionsMonitor.CurrentValue;
+            this.jwtConfig = jwtOptions.CurrentValue;
             this.logger = logger;
         }
 
+        /// <summary>
+        /// register new user
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="200">If request processed successfully</response>
+        /// <response code="400">If bad request or user with same email already exist</response>
         [HttpPost]
         [Route("Register")]
         public async Task<IActionResult> Register([FromBody] UserRegistration user)
@@ -85,6 +91,13 @@ namespace WebToDoAPI.Controllers
         }
 
 
+
+        /// <summary>
+        /// Login user by email\pwd
+        /// </summary>
+        /// <returns>Jwt auth token</returns>
+        /// <response code="200">If request processed successfully </response>
+        /// <response code="400">If bad request if input data invalid</response>
         [HttpPost]
         [Route("Login")]
         public async Task<IActionResult> Login([FromBody] LoginModel user)
@@ -117,6 +130,13 @@ namespace WebToDoAPI.Controllers
 
         }
 
+        /// <summary>
+        /// Request from user "forgot password"
+        /// </summary>
+        /// <returns>send reset pwd token to user email</returns>
+        /// <response code="200">If request processed successfully </response>
+        /// <response code="400">If bad request if input data invalid</response>
+        /// <response code="404">If user not found</response>
         [HttpPost]
         [Route("Forgot")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest resetPassword)
@@ -155,6 +175,14 @@ namespace WebToDoAPI.Controllers
             return Ok(new ResetPasswordResponse { Result = true });
         }
 
+
+        /// <summary>
+        /// Set new password using reset password token
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="200">If request processed successfully </response>
+        /// <response code="400">If bad request if input data invalid or password update was not succeed </response>
+        /// <response code="404">If user not found</response>
         [HttpPost]
         [Route("ResetPassword")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest resetPassword)
