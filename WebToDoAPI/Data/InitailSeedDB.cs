@@ -19,7 +19,7 @@ namespace WebToDoAPI.Data
             var roleManager = serviceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
 
             //re crete DB each time 
-            context.Database.EnsureDeleted();
+            //context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
 
             if (!context.Users.Any())
@@ -87,9 +87,6 @@ namespace WebToDoAPI.Data
             _ = userManager.AddToRoleAsync(user, AppUserRoles.User).Result;
             _ = userManager.AddToRoleAsync(lockedUser, AppUserRoles.User).Result;
             _ = userManager.AddToRolesAsync(userWithAdminRights, new[] { AppUserRoles.Administrator, AppUserRoles.User }).Result;
-            
-            
-            
         }
     }
 }
